@@ -7,17 +7,51 @@ const Comment = require("../models/comment")
 const router = new express.Router()
 const validateEducation = require("../validators/education")
 const dateFormat = require('dateformat');
+const extract = require('mention-hashtag')
+const Hashtag = require("../models/hashtag")
+const { hash } = require("bcrypt")
+const { reverse } = require("dns")
+const { Hash } = require("crypto")
+
 
 router.get("/post/all", auth, async (req,res) => {
     try {
         const posts = []
 
+        const sort = req.query.sort
+
+        var sortMethod = {}
+
+        if (sort == 0) { // newest to old
+            sortMethod = {date : -1}
+        } else if (sort == 1) {
+            sortMethod = {date : 1}
+        }
+        else if (sort == 2) { // newest to old
+            sortMethod = {readers : -1}
+        } else if (sort == 3) {
+            sortMethod = {readers : 1}
+        }
+
+
         let limit = 5; 
         let page = (Math.abs(req.query.page) || 1) - 1;
 
-        const foundPosts = Post.find().sort({date : -1}).limit(limit).skip(limit * page)
-    
+
+        var foundPosts
+
+        if (sort == 0 || sort == 1)
+            foundPosts = Post.aggregate([ {'$match': { _id : {$exists: true}}},  { "$sort": sortMethod}, { "$skip": limit * page}, { "$limit": limit}])
+        else 
+            foundPosts = Post.aggregate([{ "$match": {}},  {$addFields: { readerLength: { $size: "$readers" } }, }, { "$sort": sortMethod},  { "$skip": limit * page}, { "$limit": limit}])
+
+
+        console.log("length " + foundPosts)
+        
+            
         for await (const post of foundPosts) {
+
+            console.log(post)
 
             const postProfile = await Profile.findOne({_id : post.profile});
 
@@ -25,11 +59,12 @@ router.get("/post/all", auth, async (req,res) => {
                 console.log("Owner of post doesnt exist. Continue");
                 continue;
             } 
-
-            const formatted = dateFormat(post.date,"HH:MM mmm/dd/yyyy");
-          //  post.put("date", formatted);
-
             
+
+
+            post.date= dateFormat(post.date,"dd.mm.yyyy HH:MM")
+
+
             const comments = await Comment.countDocuments({post : post._id});
             var likeSum = post.likes.length - post.dislikes.length;
             var isMine = false
@@ -44,8 +79,91 @@ router.get("/post/all", auth, async (req,res) => {
                 isLiked = post.likes.filter(like => like.profiles.toString() == userProfile._id.toString()).length;
             }
 
+            var readers = 0
+            if (post.readers)
+                readers = post.readers.length;
+
     
-            newPost = {"profileName" : postProfile.handler, "profileImage" : postProfile.profilePhoto, ...post.toJSON(),isMine, isLiked : isLiked!=0?true:false , isDisliked : isDisliked!=0?true:false, like : likeSum,  commentLength:  comments}
+            newPost = {"profileName" : postProfile.handler, "profileImage" : postProfile.profilePhoto, ...post,isMine, isLiked : isLiked!=0?true:false , isDisliked : isDisliked!=0?true:false, like : likeSum,  commentLength:  comments, readers}
+            posts.push(newPost)
+        }
+
+
+        res.send({posts})
+    } catch (e) {
+        console.log(e)
+        res.status(400).send({"error" : "An error occured while fetching posts."})
+    }
+
+})
+
+router.get("/post/all/:hashtag", auth, async (req,res) => {
+    try {
+
+        const hashtag = req.params.hashtag
+
+        const sort = req.query.sort
+
+        var sortMethod = {}
+
+        if (sort == 0) { // newest to old
+            sortMethod = {date : -1}
+        } else if (sort == 1) {
+            sortMethod = {date : 1}
+        }
+        else if (sort == 2) { // newest to old
+            sortMethod = {readers : -1}
+        } else if (sort == 3) {
+            sortMethod = {readers : 1}
+        }
+
+
+        let limit = 5; 
+        let page = (Math.abs(req.query.page) || 1) - 1;
+
+
+        var foundPosts
+
+        const posts = []
+
+        if (sort == 0 || sort == 1)
+            foundPosts = Post.aggregate([{ "$match": {text:{'$regex' : "#"+hashtag, '$options' : 'i'}}},  { "$sort": sortMethod},  { "$limit": limit},  { "$skip": limit * page}])
+        else 
+            foundPosts = Post.aggregate([{ "$match": {text:{'$regex' : "#"+hashtag, '$options' : 'i'}}},  {$addFields: { readerLength: { $size: "$readers" } }, }, { "$sort": sortMethod},  { "$limit": limit},  { "$skip": limit * page}])
+
+
+    
+        for await (const post of foundPosts) {
+
+            const postProfile = await Profile.findOne({_id : post.profile});
+
+            if (!postProfile) {
+                console.log("Owner of post doesnt exist. Continue");
+                continue;
+            } 
+
+
+             post.date= dateFormat(post.date,"dd.mm.yyyy HH:MM")
+
+            const comments = await Comment.countDocuments({post : post._id});
+            var likeSum = post.likes.length - post.dislikes.length;
+            var isMine = false
+            var isDisliked = false
+            var isLiked = false
+
+            const userProfile = req.profile
+            if (userProfile)
+            {
+                isMine = post.profile.toString() == userProfile._id.toString() ? true : false;
+                isDisliked = post.dislikes.filter(dislike => dislike.profiles.toString() == userProfile._id.toString()).length;
+                isLiked = post.likes.filter(like => like.profiles.toString() == userProfile._id.toString()).length;
+            }
+
+            const readers = post.readers.length;
+
+
+    
+            newPost = {"profileName" : postProfile.handler, "profileImage" : postProfile.profilePhoto, ...post, isMine, isLiked : isLiked!=0?true:false , isDisliked : isDisliked!=0?true:false, like : likeSum,  commentLength:  comments, readers}
             posts.push(newPost)
         }
 
@@ -69,11 +187,13 @@ router.get("/post/:id", auth, async (req,res) => {
     try {
         const post = await Post.findOne({ _id})
 
-        const postProfile = await Profile.findOne({_id : post.profile})
-
+        
         if (!post) {
             return res.status(404).send({error:"Post not found."});
         }
+
+        const postProfile = await Profile.findOne({_id : post.profile})
+
 
         if (!postProfile) {
             return res.status(404).send({error:"Post owner not found."});
@@ -92,6 +212,15 @@ router.get("/post/:id", auth, async (req,res) => {
 
             comments.push({"profileName" : commentProfile.handler, "profileImage" : commentProfile.profilePhoto,isMine, ...comment.toJSON()})
         }
+
+        const readerResult = post.readers.filter(reader => reader.profiles.toString() == myProfile._id.toString());
+        if (readerResult.length == 0) {
+            console.log("reader olarak kaydet :))))")
+            post.readers.unshift({ profiles: myProfile._id });
+            await post.save()
+        }
+
+        const readers = post.readers.length;
     
         var likeSum = post.likes.length - post.dislikes.length;
 
@@ -99,7 +228,7 @@ router.get("/post/:id", auth, async (req,res) => {
         const isLiked = post.likes.filter(like => like.profiles.toString() == myProfile._id.toString()).length;
         const isMine = post.profile.toString() == myProfile._id.toString() ? true : false;
 
-        res.send({"profileName" : postProfile.handler, "profileImage" : postProfile.profilePhoto, ...post.toJSON(), isMine, isLiked : isLiked!=0?true:false , isDisliked : isDisliked!=0?true:false, like : likeSum,  commentLength:  comments.length, comments});
+        res.send({"profileName" : postProfile.handler, "profileImage" : postProfile.profilePhoto, ...post.toJSON(), isMine, isLiked : isLiked!=0?true:false , isDisliked : isDisliked!=0?true:false, like : likeSum,  commentLength:  comments.length, comments, readers});
 
         } catch (e) {
             console.log(e)
@@ -107,12 +236,78 @@ router.get("/post/:id", auth, async (req,res) => {
     }
 })
 
+
+router.get("/hashtags/", auth, async (req,res) => {
+
+    let limit = 15; 
+    let page = (Math.abs(req.query.page) || 1) - 1;
+
+    const allHashtags = await Hashtag.find({}).sort({value : -1}).limit(limit).skip(limit * page)
+
+
+    res.send(allHashtags)
+})
+
+
+router.get("/hashtags/:hashtag", auth, async (req,res) => {
+
+    const hashtag = req.params.hashtag
+
+    console.log("gelen ne " + hashtag)
+
+
+    let limit = 15; 
+    let page = (Math.abs(req.query.page) || 1) - 1;
+
+    const allHashtags = await Hashtag.find({"hashtag": new RegExp(hashtag, "i")}).sort({value : -1}).limit(limit).skip(limit * page)
+
+
+    res.send(allHashtags)
+})
+
+
+router.get("/hashtags", auth, async (req,res) => {
+
+    let limit = 5; 
+    let page = (Math.abs(req.query.page) || 1) - 1;
+
+    const allHashtags = await Hashtag.find({}).sort({value : -1}).limit(limit).skip(limit * page)
+
+
+    res.send(allHashtags)
+})
+
+
 router.post("/post", auth, async (req,res) => {
     const profile = req.profile
     
 
     const post = new Post({...req.body, "profile" : req.profile._id})
 
+    const postContent = post.text;
+
+    const hashtags = extract(postContent, { unique: true, type: '#'});
+
+    for (const i in hashtags) {
+
+        const hashtag = hashtags[i]
+
+        if (hashtag.length > 24)
+            continue
+
+        const findHashtag = await Hashtag.findOne({hashtag : hashtag})
+
+        if (findHashtag)
+        {
+            await findHashtag.update({$inc: {'value': 1}})
+            await findHashtag.save()
+            continue
+        }
+
+        const createHashtag = new Hashtag({hashtag})
+        createHashtag.save()
+    }
+      
     try {
         await post.save()
         res.status(201). send(post)
@@ -207,12 +402,15 @@ router.post("/post/like/:id", auth, async (req,res) => {
 
         await post.save()
 
+        const readers = post.readers.length;
+
+
        // const comments = await Comment.find({profile : profile._id, post : post._id});
         var likeSum = post.likes.length - post.dislikes.length;
 
         const isDisliked = post.dislikes.filter(dislike => dislike.profiles.toString() == req.profile._id.toString()).length;
         const isLiked = post.likes.filter(like => like.profiles.toString() == req.profile._id.toString()).length;
-        res.send({isLiked : isLiked!=0?true:false , isDisliked : isDisliked!=0?true:false, like : likeSum});
+        res.send({isLiked : isLiked!=0?true:false , isDisliked : isDisliked!=0?true:false, like : likeSum, readers});
        // res.send({"profileName" : profile.handler, "profileImage" : profile.profilePhoto , ...post.toJSON(), isLiked : isLiked!=0?true:false , isDisliked : isDisliked!=0?true:false, like : likeSum,  commentLength:  comments.length});
 
     } catch(e) {
@@ -257,10 +455,11 @@ router.post("/post/dislike/:id", auth, async (req,res) => {
 
         //const comments = await Comment.find({profile : profile._id, post : post._id});
         var likeSum = post.likes.length - post.dislikes.length;
+        const readers = post.readers.length;
 
         const isDisliked = post.dislikes.filter(dislike => dislike.profiles.toString() == req.profile._id.toString()).length;
         const isLiked = post.likes.filter(like => like.profiles.toString() == req.profile._id.toString()).length;
-        res.send({isLiked : isLiked!=0?true:false , isDisliked : isDisliked!=0?true:false, like : likeSum});
+        res.send({isLiked : isLiked!=0?true:false , isDisliked : isDisliked!=0?true:false, like : likeSum,readers});
 
         //res.send({"profileName" : profile.handler, "profileImage" : profile.profilePhoto, ...post.toJSON(), isLiked : isLiked!=0?true:false , isDisliked : isDisliked!=0?true:false, like : likeSum,  commentLength:  comments.length});
 

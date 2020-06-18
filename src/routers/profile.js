@@ -73,12 +73,15 @@ router.get("/profile/:id", auth, async (req,res) => {
         const education = await Education.find({profile : profile._id});
         const experience = await Experience.find({profile : profile._id});
         const repository = await Repository.find({profile : profile._id});
-        const social = await Social.find({profile : profile._id});
-        const skill = await Skill.find({profile : profile._id});
+        const social = await Social.findOne({profile : profile._id});
+        const skills = await Skill.find({profile : profile._id});
 
-        const socialMedia = {"facebook" : social.facebook,"twitter" : social.twitter, "instagram" : social.instagram, "youtube" : social.youtube, "linkedin" : social.linkedin, }
+        var socialMedia = {}
 
-        return res.send({...profile.toJSON(), education, experience, repository, socialMedia, skill});
+        if (social)
+            socialMedia = {"facebook" : social.facebook,"twitter" : social.twitter, "instagram" : social.instagram, "youtube" : social.youtube, "linkedin" : social.linkedin, }
+
+        return res.send({...profile.toJSON(), education, experience, repository, socialMedia, skills});
 
     } 
     catch (e) {

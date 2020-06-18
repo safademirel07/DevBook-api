@@ -4,19 +4,31 @@ const jwt = require("jsonwebtoken")
 const Profile = require("./profile")
 const dateFormat = require('dateformat');
 
-const postSchema = new mongoose.Schema({  
+const eventSchema = new mongoose.Schema({  
     profile: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Profile',
         required : true,
     },  
-    text : {
+    title : {
       type : String,
       text : true,
       minlength : 1,
-      required: [true, 'Text must be provided'],
+      required: [true, 'Title must be provided'],
     },
-    likes: [
+    description : {
+      type : String,
+      text : true,
+      minlength : 1,
+      required: [true, 'Description must be provided'],
+    },
+    location : {
+      type : String,
+      text : true,
+      minlength : 1,
+      required: [true, 'Location must be provided'],
+    },
+    participants: [
         {
           profiles: {
             type: mongoose.Schema.Types.ObjectId,
@@ -24,7 +36,7 @@ const postSchema = new mongoose.Schema({
           }
         }
       ],
-    dislikes: [
+    maybes: [
         {
           profiles: {
             type: mongoose.Schema.Types.ObjectId,
@@ -35,32 +47,25 @@ const postSchema = new mongoose.Schema({
     date: {
         type: Date,
         default : Date.now,
-    },
-    readers : [
-      {
-        profiles: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'Profile'
-        }
-      }
-    ],
+        required: [true, 'Date must be provided'],
+      },
 })
 
-postSchema.methods.toJSON = function () {
+eventSchema.methods.toJSON = function () {
   const post = this
   const postObject = post.toObject()
 
-  const length = postObject.likes.length - postObject.dislikes.length
+  //const length = postObject.likes.length - postObject.dislikes.length
 
-  delete postObject.likes
-  delete postObject.dislikes
-  delete postObject.__v
-  delete postObject.readers
+  //delete postObject.likes
+  //delete postObject.dislikes
+  //delete postObject.__v
 
+  
   postObject.date= dateFormat(postObject.date,"dd.mm.yyyy HH:MM")
 
   return postObject 
 }
 
-const Post = mongoose.model("Post", postSchema)
-module.exports = Post
+const Event = mongoose.model("Event", eventSchema)
+module.exports = Event
