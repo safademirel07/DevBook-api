@@ -28,6 +28,18 @@ const eventSchema = new mongoose.Schema({
       minlength : 1,
       required: [true, 'Location must be provided'],
     },
+    latitude : {
+      type : String,
+      text : true,
+      minlength : 1,
+      required: [true, 'Latitude must be provided'],
+    },
+    longitude : {
+      type : String,
+      text : true,
+      minlength : 1,
+      required: [true, 'Longitude must be provided'],
+    },
     participants: [
         {
           profiles: {

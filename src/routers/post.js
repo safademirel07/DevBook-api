@@ -20,6 +20,9 @@ router.get("/post/all", auth, async (req,res) => {
 
         const sort = req.query.sort
 
+        const search = req.query.search
+
+
         var sortMethod = {}
 
         if (sort == 0) { // newest to old
@@ -28,9 +31,9 @@ router.get("/post/all", auth, async (req,res) => {
             sortMethod = {date : 1}
         }
         else if (sort == 2) { // newest to old
-            sortMethod = {readers : -1}
+            sortMethod = {readerLength : -1}
         } else if (sort == 3) {
-            sortMethod = {readers : 1}
+            sortMethod = {readerLength : 1}
         }
 
 
@@ -41,12 +44,12 @@ router.get("/post/all", auth, async (req,res) => {
         var foundPosts
 
         if (sort == 0 || sort == 1)
-            foundPosts = Post.aggregate([ {'$match': { _id : {$exists: true}}},  { "$sort": sortMethod}, { "$skip": limit * page}, { "$limit": limit}])
+            foundPosts = Post.aggregate([ { "$match": {text:{'$regex' : search, '$options' : 'i'}}},  { "$sort": sortMethod}, { "$skip": limit * page}, { "$limit": limit}])
         else 
-            foundPosts = Post.aggregate([{ "$match": {}},  {$addFields: { readerLength: { $size: "$readers" } }, }, { "$sort": sortMethod},  { "$skip": limit * page}, { "$limit": limit}])
+            foundPosts = Post.aggregate([{ "$match": {text:{'$regex' : search, '$options' : 'i'}}},  {$addFields: { readerLength: { $size: "$readers" } }, }, { "$sort": sortMethod},  { "$skip": limit * page}, { "$limit": limit}])
 
 
-        console.log("length " + foundPosts)
+        console.log("page " + page)
         
             
         for await (const post of foundPosts) {
@@ -104,6 +107,9 @@ router.get("/post/all/:hashtag", auth, async (req,res) => {
 
         const sort = req.query.sort
 
+                const search = req.query.search
+
+
         var sortMethod = {}
 
         if (sort == 0) { // newest to old
@@ -112,9 +118,9 @@ router.get("/post/all/:hashtag", auth, async (req,res) => {
             sortMethod = {date : 1}
         }
         else if (sort == 2) { // newest to old
-            sortMethod = {readers : -1}
+            sortMethod = {readerLength : -1}
         } else if (sort == 3) {
-            sortMethod = {readers : 1}
+            sortMethod = {readerLength : 1}
         }
 
 
@@ -127,9 +133,9 @@ router.get("/post/all/:hashtag", auth, async (req,res) => {
         const posts = []
 
         if (sort == 0 || sort == 1)
-            foundPosts = Post.aggregate([{ "$match": {text:{'$regex' : "#"+hashtag, '$options' : 'i'}}},  { "$sort": sortMethod},  { "$limit": limit},  { "$skip": limit * page}])
+            foundPosts = Post.aggregate([ { "$match": { $and : [ {text:{'$regex' : "#"+hashtag, '$options' : 'i'}}, {text:{'$regex' : search, '$options' : 'i'}}]}},  { "$sort": sortMethod}, { "$skip": limit * page}, { "$limit": limit}])
         else 
-            foundPosts = Post.aggregate([{ "$match": {text:{'$regex' : "#"+hashtag, '$options' : 'i'}}},  {$addFields: { readerLength: { $size: "$readers" } }, }, { "$sort": sortMethod},  { "$limit": limit},  { "$skip": limit * page}])
+            foundPosts = Post.aggregate([ { "$match": { $and : [ {text:{'$regex' : "#"+hashtag, '$options' : 'i'}}, {text:{'$regex' : search, '$options' : 'i'}}]}},  {$addFields: { readerLength: { $size: "$readers" } }, }, { "$sort": sortMethod},  { "$skip": limit * page},  { "$limit": limit}, ])
 
 
     

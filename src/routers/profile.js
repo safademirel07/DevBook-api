@@ -50,7 +50,28 @@ router.get("/profile/all", auth, async (req,res) => {
         let limit = 10; 
         let page = (Math.abs(req.query.page) || 1) - 1;
 
-        const profiles = await Profile.find({}).sort({createDate : -1}).limit(limit).skip(limit * page)
+        const search = req.query.search
+
+        if (search.length > 0)
+        {
+            const profiles = await Profile.find(
+                {
+                    $or : 
+                    [
+                        {"handler": new RegExp(search, "i")},
+                        {"company": new RegExp(search, "i")},
+                        {"website": new RegExp(search, "i")},
+                        {"location": new RegExp(search, "i")},
+                        {"biography": new RegExp(search, "i")}
+                    ]
+                })
+                .sort({createDate : -1}).
+                limit(limit).skip(limit * page)
+    
+        } else {
+            const profiles = await Profile.find({}).sort({createDate : -1}).limit(limit).skip(limit * page)
+    
+        }
         res.send({profiles})
     
     } catch (e) {
