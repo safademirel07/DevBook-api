@@ -19,6 +19,8 @@
     "body-parser": "^1.19.0",
     "dateformat": "^3.0.3",
     "express": "^4.17.1",
+    "firebase": "^7.15.3",
+    "firebase-admin": "^8.12.1",
     "googleapis": "^52.1.0",
     "jsonwebtoken": "^8.5.1",
     "mention-hashtag": "^1.1.1",

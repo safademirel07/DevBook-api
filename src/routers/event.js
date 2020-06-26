@@ -98,7 +98,6 @@ router.get("/event/all", auth, async (req,res) => {
 
         res.send({events})
     } catch (e) {
-        console.log(e)
         res.status(400).send({"error" : "An error occured while fetching events."})
     }
 
@@ -111,15 +110,33 @@ router.get("/event/all/:search", auth, async (req,res) => {
 
         const search = req.params.search
 
-        console.log
 
         let limit = 5; 
         let page = (Math.abs(req.query.page) || 1) - 1;
         var isoDate = new Date().toISOString()
-        
 
 
-        const foundEvents = Event.find( {$or : [{"description": new RegExp(search, "i")},{"title": new RegExp(search, "i")}], $and : [{date : {"$gte" : isoDate}}]}).sort({date : 1}).limit(limit).skip(limit * page)
+/*
+         const foundEvents = Event.aggregate([ 
+            { "$match": {
+                $or : [{"description": new RegExp(search, "i")},{"title": new RegExp(search, "i")}],
+                {date : {"$gte" : isoDate}},
+                
+            } , 
+            },  
+            { "$sort": {date: 1}}, 
+            { "$skip": limit * page}, 
+            { "$limit": limit}
+        ])
+
+ */
+
+
+
+
+        const foundEvents = Event.find( {$or : [{"description": new RegExp(search, "i")},{"title": new RegExp(search, "i")},{"date": new RegExp(search, "i")}], $and : [{date : {"$gte" : isoDate}}]}).sort({date : 1}).limit(limit).skip(limit * page)
+
+
     
         for await (const event of foundEvents) {
             
@@ -147,14 +164,13 @@ router.get("/event/all/:search", auth, async (req,res) => {
             const participantCount = event.participants.length;
         
     
-            newPost = {"profileName" : eventProfile.handler, "profileImage" : eventProfile.profilePhoto, ...event.toJSON(), isMine, isMaybe : isMaybe!=0?true:false, isParticipant: isParticipant!=0?true:false, maybeCount, participantCount}
+            newPost = {"profileName" : eventProfile.handler, "profileImage" : eventProfile.profilePhoto, ...event, isMine, isMaybe : isMaybe!=0?true:false, isParticipant: isParticipant!=0?true:false, maybeCount, participantCount}
             events.push(newPost)
         }
 
 
         res.send({events})
     } catch (e) {
-        console.log(e)
         res.status(400).send({"error" : "An error occured while fetching events."})
     }
 
@@ -229,7 +245,6 @@ router.get("/event/:id", auth, async (req,res) => {
         res.send({"profileName" : eventProfile.handler, "profileImage" : eventProfile.profilePhoto, ...event.toJSON(), isMine, isMaybe : isMaybe!=0?true:false, isParticipant: isParticipant!=0?true:false, maybeCount, participantCount,participants, maybes});
 
         } catch (e) {
-            console.log(e)
         res.status(500).send(e)
     }
 })
@@ -238,7 +253,6 @@ router.get("/event/:id", auth, async (req,res) => {
 router.post("/event", auth, async (req,res) => {
     const profile = req.profile
     const event = new Event({...req.body, "profile" : req.profile._id})
-    console.log("gelen event"  + event);
 
 
     try {
@@ -329,11 +343,12 @@ router.post("/event/participation/:id", auth, async (req,res) => {
             
         }  
 
-
+        /*
         smtpTransport.sendMail(mailOptions, (error, response) => {
             error ? console.log(error) : console.log(response);
             smtpTransport.close();
        });
+       */
 
         const isMaybe = event.maybes.filter(maybe => maybe.profiles.toString() == req.profile._id.toString()).length;
         const isParticipant = event.participants.filter(participant => participant.profiles.toString() == req.profile._id.toString()).length;
@@ -344,7 +359,6 @@ router.post("/event/participation/:id", auth, async (req,res) => {
         res.send({isMaybe : isMaybe!=0?true:false, isParticipant: isParticipant!=0?true:false, maybeCount, participantCount, participants, maybes });
 
     } catch(e) {
-        console.log(e);
         res.status(400).send(e);
     }
 })
@@ -419,7 +433,6 @@ router.post("/event/maybe/:id", auth, async (req,res) => {
         res.send({isMaybe : isMaybe!=0?true:false, isParticipant: isParticipant!=0?true:false, maybeCount, participantCount, participants, maybes });
 
     } catch(e) {
-        console.log(e);
         res.status(400).send(e);
     }
 })

@@ -30,10 +30,13 @@ router.get("/profile/me", auth, async (req,res) => {
 
             var socialMedia = {}
 
+            const email = req.user.email;
+            const isMe = true
+
             if (social)
                 socialMedia = {"facebook" : social.facebook,"twitter" : social.twitter, "instagram" : social.instagram, "youtube" : social.youtube, "linkedin" : social.linkedin, }
 
-            res.send({...profile, education, experience, repository, socialMedia, skills})
+            res.send({...profile, education, experience, repository, socialMedia, skills, email, isMe})
         } catch (e) {
             console.log("[GET] - [Profile:Me] - Error: %s", e);
             res.send({"error" : "An unknown error occured."})
@@ -52,7 +55,7 @@ router.get("/profile/all", auth, async (req,res) => {
 
         const search = req.query.search
 
-        if (search.length > 0)
+        if (search && search.length > 0)
         {
             const profiles = await Profile.find(
                 {
@@ -67,12 +70,15 @@ router.get("/profile/all", auth, async (req,res) => {
                 })
                 .sort({createDate : -1}).
                 limit(limit).skip(limit * page)
+
+            res.send({profiles})
+
     
         } else {
             const profiles = await Profile.find({}).sort({createDate : -1}).limit(limit).skip(limit * page)
-    
+            res.send({profiles})
+
         }
-        res.send({profiles})
     
     } catch (e) {
         console.log("[GET] - [Profile:All] - Error: %s", e);
@@ -97,12 +103,23 @@ router.get("/profile/:id", auth, async (req,res) => {
         const social = await Social.findOne({profile : profile._id});
         const skills = await Skill.find({profile : profile._id});
 
+        const profileUser = await User.findOne({_id : profile.user});
+
+
+        const email = profileUser.email;
+
+        var isMe = false
+
+        if (req.user.email == email) {
+            isMe = true
+        }
+
         var socialMedia = {}
 
         if (social)
             socialMedia = {"facebook" : social.facebook,"twitter" : social.twitter, "instagram" : social.instagram, "youtube" : social.youtube, "linkedin" : social.linkedin, }
 
-        return res.send({...profile.toJSON(), education, experience, repository, socialMedia, skills});
+        return res.send({...profile.toJSON(), education, experience, repository, socialMedia, skills, email,isMe});
 
     } 
     catch (e) {
@@ -135,11 +152,13 @@ router.post("/profile", auth, async (req,res) => {
             delete req.body.__v
             delete req.body.user
             delete req.body.skills
+            delete req.body.email
         } catch (e) {
             console.log("[POST] - [Profile] - Error: %s", e);
         }
 
-        const updates = Object.keys(req.body)
+        var updates = Object.keys(req.body)
+
 
         var photoUrlCreated = ""
 
@@ -150,7 +169,7 @@ router.post("/profile", auth, async (req,res) => {
             photoUrlCreated = uniqueFilename("./public/uploads", 'img')+".jpeg"
 
             fs.writeFile(photoUrlCreated, base64Image, {encoding: 'base64'}, function(err) {
-                console.log('File created');
+                console.log('File created ' + photoUrlCreated);
             });
         }
 
@@ -167,6 +186,7 @@ router.post("/profile", auth, async (req,res) => {
                 if (update == "uploadedPhoto") 
                 {
                     if (updates.includes("uploadedPhoto")) {
+
                        // profile["profilePhoto"] = "https://devbook-api.azurewebsites.net" + photoUrlCreated.replace("public","").replace(/\\/g, "/")
                         profile["profilePhoto"] = "http://10.0.2.2:3000" + photoUrlCreated.replace("public","").replace(/\\/g, "/")
                     }
@@ -213,7 +233,7 @@ router.post("/profile", auth, async (req,res) => {
             photoUrlCreated = uniqueFilename("./public/uploads", 'img')+".jpeg"
 
             fs.writeFile(photoUrlCreated, base64Image, {encoding: 'base64'}, function(err) {
-                console.log('File created');
+                console.log('File created' + photoUrlCreated);
             });
         }
 

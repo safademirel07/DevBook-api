@@ -5,6 +5,9 @@ const validation = require("../validators/register");
 const router = new express.Router()
 const validator = require("validator")
 
+const firebaseAdmin = require("../firebase/firebase")
+
+
 
 router.post("/users/register", async (req,res) => {
 
@@ -28,16 +31,36 @@ router.post("/users/register", async (req,res) => {
     const user = new User(req.body)
 
     try {
-        await user.save()
-        const token = await user.generateAuthToken()
 
-        return res.status(201).send( { 
-            "_id" : user._id,
-            "photoUrl" : user.photoUrl,      
-            //"name" : user.name,      
-            "email" : user.email,      
-            token 
-        })
+        firebaseAdmin.auth().createUser({
+            email: req.body.email,
+            password: req.body.password,
+          })
+            .then(async function(userRecord) {
+              // See the UserRecord reference doc for the contents of userRecord.
+              console.log('[Firebase] Successfully created new user:', userRecord.uid);
+
+              user.firebaseUID = userRecord.uid
+
+              await user.save()
+              const token = await user.generateAuthToken()
+      
+              return res.status(201).send( { 
+                  "_id" : user._id,
+                  "photoUrl" : user.photoUrl,      
+                  //"name" : user.name,      
+                  "email" : user.email,      
+                  token 
+              })
+
+
+            })
+            .catch(function(error) {
+                return res.status(400).send({"error": "An Firebase eror happened."})
+            });
+
+
+        
     } catch (e) {
         console.log(e)
         return res.status(400).send({"error": "An unknown eror happened."})
@@ -54,7 +77,7 @@ router.post("/users/login", async (req,res) => {
             "_id" : user._id,
             "photoUrl" : user.photoUrl,      
             //"name" : user.name,      
-            "email" : user.email,      
+            "email" : user.email,  
             token 
         }) 
     } catch (e) {

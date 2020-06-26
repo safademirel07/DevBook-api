@@ -32,7 +32,10 @@ const userSchema = new mongoose.Schema({
             type : String,
             required : true
         }
-    }]
+    }],
+    firebaseUID : {
+        type : String,
+    }, 
 },)
 
 userSchema.virtual("profile", {
@@ -43,7 +46,6 @@ userSchema.virtual("profile", {
 
 //model methods
 userSchema.statics.findByCredentials = async (email, password) => {
-    console.log(email)
     const user = await User.findOne({ email })
 
     if (!user) {

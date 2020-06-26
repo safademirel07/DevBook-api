@@ -49,12 +49,10 @@ router.get("/post/all", auth, async (req,res) => {
             foundPosts = Post.aggregate([{ "$match": {text:{'$regex' : search, '$options' : 'i'}}},  {$addFields: { readerLength: { $size: "$readers" } }, }, { "$sort": sortMethod},  { "$skip": limit * page}, { "$limit": limit}])
 
 
-        console.log("page " + page)
         
             
         for await (const post of foundPosts) {
 
-            console.log(post)
 
             const postProfile = await Profile.findOne({_id : post.profile});
 
@@ -221,7 +219,6 @@ router.get("/post/:id", auth, async (req,res) => {
 
         const readerResult = post.readers.filter(reader => reader.profiles.toString() == myProfile._id.toString());
         if (readerResult.length == 0) {
-            console.log("reader olarak kaydet :))))")
             post.readers.unshift({ profiles: myProfile._id });
             await post.save()
         }
@@ -258,8 +255,6 @@ router.get("/hashtags/", auth, async (req,res) => {
 router.get("/hashtags/:hashtag", auth, async (req,res) => {
 
     const hashtag = req.params.hashtag
-
-    console.log("gelen ne " + hashtag)
 
 
     let limit = 15; 
@@ -449,7 +444,6 @@ router.post("/post/dislike/:id", auth, async (req,res) => {
         /*End Check Like*/
 
         const dislikeResult = post.dislikes.filter(dislike => dislike.profiles.toString() == req.profile._id.toString());
-        console.log(dislikeResult);
         if (dislikeResult.length > 0) {
             const removeIndexDislike = post.dislikes.map(item => item.profiles.toString()).indexOf(req.profile._id.toString());
             post.dislikes.splice(removeIndexDislike, 1);
