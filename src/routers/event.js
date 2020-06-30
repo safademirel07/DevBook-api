@@ -56,7 +56,7 @@ router.get("/event/all", auth, async (req,res) => {
 
 
 
-        let limit = 5; 
+        let limit =  100; 
         let page = (Math.abs(req.query.page) || 1) - 1;
 
         var isoDate = new Date().toISOString()
@@ -70,7 +70,7 @@ router.get("/event/all", auth, async (req,res) => {
             const eventProfile = await Profile.findOne({_id : event.profile});
 
             if (!eventProfile) {
-                console.log("Owner of post doesnt exist. Continue");
+                console.log("Owner of event doesnt exist. Continue");
                 continue;
             } 
 
@@ -91,7 +91,7 @@ router.get("/event/all", auth, async (req,res) => {
             const participantCount = event.participants.length;
         
     
-            newPost = {"profileName" : eventProfile.handler, "profileImage" : eventProfile.profilePhoto, ...event.toJSON(), isMine, isMaybe : isMaybe!=0?true:false, isParticipant: isParticipant!=0?true:false, maybeCount, participantCount}
+            newPost = {"profileName" : eventProfile.handler, "profileImage" : eventProfile.profilePhoto, ...event.toJSON(), isMine, isMaybe : isMaybe!=0?true:false, isParticipant: isParticipant!=0?true:false, maybeCount, participantCount, owner : eventProfile}
             events.push(newPost)
         }
 
@@ -111,7 +111,7 @@ router.get("/event/all/:search", auth, async (req,res) => {
         const search = req.params.search
 
 
-        let limit = 5; 
+        let limit = 100; 
         let page = (Math.abs(req.query.page) || 1) - 1;
         var isoDate = new Date().toISOString()
 
@@ -164,7 +164,7 @@ router.get("/event/all/:search", auth, async (req,res) => {
             const participantCount = event.participants.length;
         
     
-            newPost = {"profileName" : eventProfile.handler, "profileImage" : eventProfile.profilePhoto, ...event, isMine, isMaybe : isMaybe!=0?true:false, isParticipant: isParticipant!=0?true:false, maybeCount, participantCount}
+            newPost = {"profileName" : eventProfile.handler, "profileImage" : eventProfile.profilePhoto, ...event, isMine, isMaybe : isMaybe!=0?true:false, isParticipant: isParticipant!=0?true:false, maybeCount, participantCount, owner : eventProfile}
             events.push(newPost)
         }
 
@@ -242,7 +242,7 @@ router.get("/event/:id", auth, async (req,res) => {
         const isMine = event.profile.toString() == myProfile._id.toString() ? true : false;
 
 
-        res.send({"profileName" : eventProfile.handler, "profileImage" : eventProfile.profilePhoto, ...event.toJSON(), isMine, isMaybe : isMaybe!=0?true:false, isParticipant: isParticipant!=0?true:false, maybeCount, participantCount,participants, maybes});
+        res.send({"profileName" : eventProfile.handler, "profileImage" : eventProfile.profilePhoto, ...event.toJSON(), isMine, isMaybe : isMaybe!=0?true:false, isParticipant: isParticipant!=0?true:false, maybeCount, participantCount,participants, maybes, owner : eventProfile});
 
         } catch (e) {
         res.status(500).send(e)

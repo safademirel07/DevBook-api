@@ -296,7 +296,9 @@ router.post("/post", auth, async (req,res) => {
         if (hashtag.length > 24)
             continue
 
-        const findHashtag = await Hashtag.findOne({hashtag : hashtag})
+            
+
+        const findHashtag = await Hashtag.findOne({"hashtag": new RegExp(hashtag, "i")})
 
         if (findHashtag)
         {

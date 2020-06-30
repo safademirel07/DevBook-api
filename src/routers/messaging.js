@@ -110,22 +110,23 @@ router.post("/messaging", auth, async (req, res) => {
         message.date = lastMessageDate
         message.save()
 
-        const peerProfile = await Profile.findOne({ _id: message.peer_profile })
 
-        if (!peerProfile) {
-            console.log("Peer profile doesnt exist. Continue");
-            return;
-        }
 
-        if (mongoose.Types.ObjectId(profile._id).equals(mongoose.Types.ObjectId(messaging.profile))) {
+        if (mongoose.Types.ObjectId(profile._id).equals(mongoose.Types.ObjectId(message.profile))) {
 
+            const peerProfile = await Profile.findOne({ _id: message.peer_profile })
+
+            if (!peerProfile) {
+                console.log("Peer profile doesnt exist. Continue");
+                return;
+            }
 
             const peerUser = await User.findOne({ _id: peerProfile.user });
             const email = peerUser.email;
 
             var isMe = false
 
-            messagingObject = messaging.toJSON()
+            messagingObject = message.toJSON()
             messagingObject["peer_profile"] = { ...peerProfile.toJSON(), email, isMe }
 
             messagingObject["date"] = dateFormat(messagingObject.date, "h:MM")
@@ -134,16 +135,24 @@ router.post("/messaging", auth, async (req, res) => {
 
 
 
-        } else if (mongoose.Types.ObjectId(profile._id).equals(mongoose.Types.ObjectId(messaging.peer_profile))) {
+        } else if (mongoose.Types.ObjectId(profile._id).equals(mongoose.Types.ObjectId(message.peer_profile))) {
+
+            const peerProfile = await Profile.findOne({ _id: message.profile })
+
+            if (!peerProfile) {
+                console.log("Peer profile doesnt exist. Continue");
+                return;
+            }
+
 
             const peerUser = await User.findOne({ _id: peerProfile.user });
             const email = peerUser.email;
 
             var isMe = false
 
-            messagingObject = messaging.toJSON()
+            messagingObject = message.toJSON()
             messagingObject["peer_profile"] = { ...peerProfile.toJSON(), email, isMe }
-            messagingObject["profile"] = messaging.peer_profile
+            messagingObject["profile"] = message.peer_profile
 
             messagingObject["date"] = dateFormat(messagingObject.date, "h:MM")
             res.send(messagingObject)
@@ -163,7 +172,7 @@ router.post("/messaging", auth, async (req, res) => {
             return;
         }
 
-        if (mongoose.Types.ObjectId(profile._id).equals(mongoose.Types.ObjectId(messaging.profile))) {
+        if (mongoose.Types.ObjectId(profile._id).equals(mongoose.Types.ObjectId(createMessage.profile))) {
 
 
             const peerUser = await User.findOne({ _id: peerProfile.user });
@@ -171,7 +180,7 @@ router.post("/messaging", auth, async (req, res) => {
 
             var isMe = false
 
-            messagingObject = messaging.toJSON()
+            messagingObject = createMessage.toJSON()
             messagingObject["peer_profile"] = { ...peerProfile.toJSON(), email, isMe }
 
             messagingObject["date"] = dateFormat(messagingObject.date, "h:MM")
@@ -180,15 +189,15 @@ router.post("/messaging", auth, async (req, res) => {
 
 
 
-        } else if (mongoose.Types.ObjectId(profile._id).equals(mongoose.Types.ObjectId(messaging.peer_profile))) {
+        } else if (mongoose.Types.ObjectId(profile._id).equals(mongoose.Types.ObjectId(createMessage.peer_profile))) {
             const peerUser = await User.findOne({ _id: peerProfile.user });
             const email = peerUser.email;
 
             var isMe = false
 
-            messagingObject = messaging.toJSON()
+            messagingObject = createMessage.toJSON()
             messagingObject["peer_profile"] = { ...peerProfile.toJSON(), email, isMe }
-            messagingObject["profile"] = messaging.peer_profile
+            messagingObject["profile"] = createMessage.peer_profile
 
             messagingObject["date"] = dateFormat(messagingObject.date, "h:MM")
             res.send(messagingObject)
